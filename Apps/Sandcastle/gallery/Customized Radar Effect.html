@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <meta name="description" content="自定雷达特效" />
+    <meta name="cesium-sandcastle-labels" content="Customized" />
+    <title>Cesium Demo</title>
+    <script type="text/javascript" src="../Sandcastle-header.js"></script>
+    <script
+      type="text/javascript"
+      src="../../../Build/CesiumUnminified/Cesium.js"
+      nomodule
+    ></script>
+    <script type="module" src="../load-cesium-es6.js"></script>
+  </head>
+
+  <body
+    class="sandcastle-loading"
+    data-sandcastle-bucket="bucket-requirejs.html"
+  >
+    <style>
+      @import url(../templates/bucket.css);
+    </style>
+    <div id="cesiumContainer" class="fullSize"></div>
+    <div id="loadingOverlay">
+      <h1>Loading...</h1>
+    </div>
+    <div id="toolbar"></div>
+    <script id="cesium_sandcastle_script">
+      function startup(Cesium) {
+        "use strict";
+        //Sandcastle_Begin
+        var viewer = new Cesium.Viewer("cesiumContainer", { infoBox: false });
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(100, 40, 1000),
+          orientation: {
+            heading: Cesium.Math.toRadians(0),
+            pitch: Cesium.Math.toRadians(-80),
+            roll: 0.0,
+          },
+        });
+        var scene = viewer.scene;
+        // 1 雷达位置计算
+        // 1.1 雷达的高度
+        var length = 400000.0;
+        // 1.2 地面位置(垂直地面)
+        var positionOnEllipsoid = Cesium.Cartesian3.fromDegrees(116.39, 39.9);
+        // 1.3 中心位置
+        var centerOnEllipsoid = Cesium.Cartesian3.fromDegrees(
+          116.39,
+          39.9,
+          length * 0.5
+        );
+        // 1.4 顶部位置(卫星位置)
+        var topOnEllipsoid = Cesium.Cartesian3.fromDegrees(
+          116.39,
+          39.9,
+          length
+        );
+        // 1.5 矩阵计算
+        var modelMatrix = Cesium.Matrix4.multiplyByTranslation(
+          Cesium.Transforms.eastNorthUpToFixedFrame(positionOnEllipsoid),
+          new Cesium.Cartesian3(0.0, 0.0, length * 0.5),
+          new Cesium.Matrix4()
+        );
+        // 2 相机飞入特定位置
+        viewer.camera.flyToBoundingSphere(
+          new Cesium.BoundingSphere(centerOnEllipsoid, length)
+        );
+        // 4 创建雷达放射波
+        // 4.1 先创建Geometry
+        var cylinderGeometry = new Cesium.CylinderGeometry({
+          length: length,
+          topRadius: 0.0,
+          bottomRadius: length * 0.5,
+          // vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT
+          vertexFormat:
+            Cesium.MaterialAppearance.MaterialSupport.TEXTURED.vertexFormat,
+        });
+        // 4.2 创建GeometryInstance
+        var redCone = new Cesium.GeometryInstance({
+          geometry: cylinderGeometry,
+          modelMatrix: modelMatrix,
+        });
+        // 4.3 创建Primitive
+        var radar = scene.primitives.add(
+          new Cesium.Primitive({
+            geometryInstances: [redCone],
+            appearance: new Cesium.MaterialAppearance({
+              // 自定义纹理
+              material: new Cesium.Material({
+                fabric: {
+                  type: "VtxfShader1",
+                  uniforms: {
+                    color: new Cesium.Color(0.2, 1.0, 0.0, 1.0),
+                    repeat: 40.0,
+                    offset: 0.0,
+                    thickness: 0.2,
+                  },
+                  source: `
+                                uniform vec4 color;
+                                uniform float repeat;
+                                uniform float offset;
+                                uniform float thickness;
+                                czm_material czm_getMaterial(czm_materialInput materialInput)
+                                {
+                                    czm_material material = czm_getDefaultMaterial(materialInput);
+                                    float sp = 1.0/repeat;
+                                    vec2 st = materialInput.st;
+                                    float dis = distance(st, vec2(0.5));
+                                    float m = mod(dis + offset, sp);
+                                    float a = step(sp*(1.0-thickness), m);
+                                    material.diffuse = color.rgb;
+                                    material.alpha = a * color.a;
+                                    return material;
+                                }
+                            `,
+                },
+                translucent: false,
+              }),
+              faceForward: false, // 当绘制的三角面片法向不能朝向视点时，自动翻转法向，从而避免法向计算后发黑等问题
+              closed: true, // 是否为封闭体，实际上执行的是是否进行背面裁剪
+            }),
+          })
+        );
+
+        // 5 动态修改雷达材质中的offset变量，从而实现动态效果。
+        viewer.scene.preUpdate.addEventListener(function () {
+          var offset = radar.appearance.material.uniforms.offset;
+          offset -= 0.001;
+          if (offset > 1.0) {
+            offset = 0.0;
+          }
+          radar.appearance.material.uniforms.offset = offset;
+        });
+        //Sandcastle_End
+        Sandcastle.finishedLoading();
+      }
+      if (typeof Cesium !== "undefined") {
+        window.startupCalled = true;
+        startup(Cesium);
+      }
+    </script>
+  </body>
+</html>

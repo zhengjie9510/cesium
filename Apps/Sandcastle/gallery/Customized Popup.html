@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <meta name="description" content="自定义弹窗" />
+    <meta name="cesium-sandcastle-labels" content="Customized" />
+    <title>Cesium Demo</title>
+    <script type="text/javascript" src="../Sandcastle-header.js"></script>
+    <script
+      type="text/javascript"
+      src="../../../Build/CesiumUnminified/Cesium.js"
+      nomodule
+    ></script>
+    <script type="module" src="../load-cesium-es6.js"></script>
+  </head>
+
+  <body
+    class="sandcastle-loading"
+    data-sandcastle-bucket="bucket-requirejs.html"
+  >
+    <style>
+      @import url(../templates/bucket.css);
+
+      /* pop框css*/
+      .cesium-popup-panel {
+        position: absolute;
+        width: 312px;
+        height: 238px;
+        opacity: 0.8;
+        z-index: 999;
+        color: #00fcf9;
+        background: rgba(23, 50, 108, 0.6);
+        border: 1px solid #4674d6;
+      }
+
+      .cesium-popup-tip-panel {
+        width: 40px;
+        height: 20px;
+        position: absolute;
+        left: 50%;
+        bottom: -20px;
+        margin-left: -20px;
+        overflow: hidden;
+        pointer-events: none;
+        opacity: 0.8;
+      }
+
+      .cesium-popup-tip-bottom {
+        width: 17px;
+        background: rgba(23, 50, 108, 0.8);
+        border-bottom: 1px solid #4674d6;
+        height: 17px;
+        padding: 1px;
+        margin: -10px auto 0;
+        -webkit-transform: rotate(45deg);
+        -moz-transform: rotate(45deg);
+        -ms-transform: rotate(45deg);
+        transform: rotate(45deg);
+      }
+
+      .cesium-popup-header-panel {
+        align-items: center;
+        font-size: 14px;
+        padding: 5px 15px;
+        background: rgba(23, 50, 108, 0.8);
+        border-bottom: 1px solid #4674d6;
+      }
+
+      .cesium-poput-header-title {
+        font-size: 16px;
+        font-family: Microsoft YaHei;
+        font-weight: 400;
+        color: #ffffff;
+      }
+
+      .cesium-popup-content-panel {
+        padding: 18px;
+      }
+
+      .cesium-popup-close-btn {
+        float: right;
+        position: relative;
+        right: 10px;
+      }
+
+      .cesium-popup-close-btn,
+      .cesium-popup-close-btn:focus {
+        cursor: pointer;
+      }
+
+      cesium-popup-close-btn > svg:hover {
+        color: #00fcf9 !important;
+      }
+
+      .cesium-popup-close-btn > svg {
+        user-select: auto;
+        color: #4674d6;
+        cursor: pointer;
+        width: 15px;
+      }
+    </style>
+    <div id="cesiumContainer" class="fullSize"></div>
+    <div id="loadingOverlay">
+      <h1>Loading...</h1>
+    </div>
+    <div id="toolbar"></div>
+    <script id="cesium_sandcastle_script">
+      function startup(Cesium) {
+        "use strict";
+        //Sandcastle_Begin
+        var viewer = new Cesium.Viewer("cesiumContainer", { infoBox: false });
+
+        /*
+         * @Author: Jason
+         * @Date: 2022-4-12
+         * @Description: add popup into Cesium viewer
+         */
+        class BaseEvent {
+          constructor() {
+            this.handles = {};
+            this.cached = [];
+          }
+          on(eventName, callback) {
+            if (typeof callback !== "function") return;
+
+            if (!this.handles[eventName]) {
+              this.handles[eventName] = [];
+            }
+            this.handles[eventName].push(callback);
+
+            if (this.cached[eventName] instanceof Array) {
+              //说明有缓存的 可以执行
+              callback.apply(null, this.cached[eventName]);
+            }
+          }
+          emit() {
+            if (this.handles[arguments[0]] instanceof Array) {
+              for (let i = 0; i < this.handles[arguments[0]].length; i++) {
+                this.handles[arguments[0]][i](arguments[1]);
+              }
+            }
+            //默认缓存
+            this.cached[arguments[0]] = Array.prototype.slice.call(
+              arguments,
+              1
+            );
+          }
+        }
+
+        let _panelContainer = null;
+        let _contentContainer = null;
+        let _closeBtn = null;
+        let _renderListener = null;
+        let _viewer = null;
+
+        class CesiumPopup extends BaseEvent {
+          constructor(options) {
+            super();
+            this.className = options.className || "";
+            this.title = options.title || "";
+            this.offset = options.offset || [0, 0];
+
+            this.closeHander = this.closeHander.bind(this);
+          }
+
+          addTo(viewer) {
+            if (_viewer) this.remove();
+            _viewer = viewer;
+            this.initPanle();
+            //关闭按钮
+            _closeBtn.addEventListener("click", this.closeHander, false);
+            if (this.position) {
+              _panelContainer.style.display = "block";
+              _renderListener = _viewer.scene.postRender.addEventListener(
+                this.render,
+                this
+              );
+            }
+            return this;
+          }
+
+          initPanle() {
+            var closeBtnIcon =
+              '<svg t="1603334792546" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="1328" width="32" height="32"><path d="M568.922 508.232L868.29 208.807a39.139 39.139 0 0 0 0-55.145l-1.64-1.64a39.139 39.139 0 0 0-55.09 0l-299.367 299.82-299.425-299.934a39.139 39.139 0 0 0-55.088 0l-1.697 1.64a38.46 38.46 0 0 0 0 55.09l299.48 299.594-299.424 299.48a39.139 39.139 0 0 0 0 55.09l1.64 1.696a39.139 39.139 0 0 0 55.09 0l299.424-299.48L811.56 864.441a39.139 39.139 0 0 0 55.089 0l1.696-1.64a39.139 39.139 0 0 0 0-55.09l-299.48-299.537z" p-id="1329"></path></svg>';
+
+            _panelContainer = document.createElement("div");
+            _panelContainer.classList.add("cesium-popup-panel");
+            if (this.className && this.className !== "") {
+              _panelContainer.classList.add(this.className);
+            }
+
+            _closeBtn = document.createElement("div");
+            _closeBtn.classList.add("cesium-popup-close-btn");
+
+            _closeBtn.innerHTML = closeBtnIcon;
+
+            // header container
+            var headerContainer = document.createElement("div");
+            headerContainer.classList.add("cesium-popup-header-panel");
+
+            this.headerTitle = document.createElement("div");
+            this.headerTitle.classList.add("cesium-poput-header-title");
+            this.headerTitle.innerHTML = this.title;
+
+            headerContainer.appendChild(this.headerTitle);
+            _panelContainer.appendChild(_closeBtn);
+
+            _panelContainer.appendChild(headerContainer);
+
+            // content container
+            _contentContainer = document.createElement("div");
+            _contentContainer.classList.add("cesium-popup-content-panel");
+            _contentContainer.innerHTML = this.content;
+
+            _panelContainer.appendChild(_contentContainer);
+
+            //tip container
+            var tipContaienr = document.createElement("div");
+            tipContaienr.classList.add("cesium-popup-tip-panel");
+
+            var tipDiv = document.createElement("div");
+            tipDiv.classList.add("cesium-popup-tip-bottom");
+
+            tipContaienr.appendChild(tipDiv);
+
+            _panelContainer.appendChild(tipContaienr);
+
+            _panelContainer.style.display = "none";
+            // add to Viewer Container
+            _viewer.cesiumWidget.container.appendChild(_panelContainer);
+            this.emit("open");
+          }
+          setHTML(html) {
+            if (_contentContainer) {
+              _contentContainer.innerHTML = html;
+            }
+            this.content = html;
+            return this;
+          }
+          render() {
+            var geometry = this.position;
+            if (!geometry) return;
+            var position = Cesium.SceneTransforms.wgs84ToWindowCoordinates(
+              _viewer.scene,
+              geometry
+            );
+            if (!position) {
+              return;
+            }
+            if (_panelContainer) {
+              _panelContainer.style.left =
+                position.x -
+                _panelContainer.offsetWidth / 2 +
+                this.offset[0] +
+                "px";
+              _panelContainer.style.top =
+                position.y -
+                _panelContainer.offsetHeight -
+                10 +
+                this.offset[1] +
+                "px";
+            }
+          }
+          setPosition(cartesian3) {
+            this.position = cartesian3;
+            return this;
+          }
+          addClassName(className) {
+            if (_panelContainer) {
+              _panelContainer.classList.add(className);
+            }
+            return this;
+          }
+          removeClass(className) {
+            if (_panelContainer) {
+              _panelContainer.classList.remove(className);
+            }
+            return this;
+          }
+          setTitle(title) {
+            this.headerTitle.innerHTML = title;
+            return this;
+          }
+          setOffset(offset) {
+            this.offset = offset;
+            return this;
+          }
+          closeHander = function () {
+            this.remove();
+          };
+          remove() {
+            _closeBtn.removeEventListener("click", this.closeHander, false);
+            if (_closeBtn) {
+              _closeBtn.parentNode.removeChild(_closeBtn);
+              _closeBtn = null;
+            }
+            if (_contentContainer) {
+              _contentContainer.parentNode.removeChild(_contentContainer);
+              _contentContainer = null;
+            }
+            if (_panelContainer) {
+              _panelContainer.parentNode.removeChild(_panelContainer);
+              _panelContainer = null;
+            }
+            if (_renderListener) {
+              _renderListener();
+              _renderListener = null;
+            }
+            if (_viewer) {
+              _viewer = null;
+            }
+            this.emit("close");
+          }
+        }
+
+        var tilesets = new Cesium.Cesium3DTileset({
+          url: "../../SampleData/Cesium3DTiles/Tilesets/Tileset/tileset.json",
+          skipLevelOfDetail: true,
+          maximumMemoryUsage: 1500,
+          maximumScreenSpaceError: 16,
+          dynamicScreenSpaceError: false,
+          preferLeaves: true,
+          debugShowContentBoundingVolume: false,
+          debugShowViewerRequestVolume: false,
+          debugShowBoundingVolume: false,
+        });
+        tilesets.readyPromise
+          .then(function (tileset) {
+            viewer.scene.primitives.add(tileset);
+            viewer.flyTo(tileset);
+          })
+          .otherwise(function (error) {
+            console.log(error);
+          });
+
+        var handler = new Cesium.ScreenSpaceEventHandler(viewer.scene.canvas);
+
+        handler.setInputAction(function (movement) {
+          // 场景坐标
+          var position = viewer.scene.pickPosition(movement.position);
+          var pickobject = viewer.scene.pick(movement.position); //取模型
+
+          if (pickobject instanceof Cesium.Cesium3DTileFeature) {
+            let html = "";
+            for (let item of pickobject.getPropertyNames()) {
+              html +=
+                "<div>" +
+                item +
+                ": " +
+                pickobject.getProperty(item) +
+                "</div>" +
+                "<br>";
+            }
+
+            var a = new CesiumPopup({
+              title: "信息",
+            })
+              .setPosition(position)
+              .setHTML(html)
+              .addTo(viewer);
+
+            a.on("close", function () {
+              console.log("close");
+            });
+
+            a.on("open", function () {
+              console.log("open");
+            });
+          }
+        }, Cesium.ScreenSpaceEventType.LEFT_CLICK);
+
+        //Sandcastle_End
+        Sandcastle.finishedLoading();
+      }
+      if (typeof Cesium !== "undefined") {
+        window.startupCalled = true;
+        startup(Cesium);
+      }
+    </script>
+  </body>
+</html>
