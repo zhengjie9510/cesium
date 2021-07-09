@@ -36,14 +36,7 @@
         "use strict";
         //Sandcastle_Begin
         var viewer = new Cesium.Viewer("cesiumContainer");
-        viewer.camera.flyTo({
-          destination: Cesium.Cartesian3.fromDegrees(100, 40, 1000),
-          orientation: {
-            heading: Cesium.Math.toRadians(0),
-            pitch: Cesium.Math.toRadians(-80),
-            roll: 0.0,
-          },
-        });
+
         // Create the scene.
         var scene = viewer.scene;
 
@@ -136,71 +129,51 @@
           0.4,
           0.4,
           1.0,
+          0.4,
+          0.4,
           1.0,
           0.4,
           0.4,
           1.0,
-          1.0,
           0.4,
           0.4,
-          1.0,
-          1.0,
-          0.4,
-          0.4,
-          1.0,
           1.0, // v0-v1-v2-v3 front(blue)
           0.4,
           1.0,
           0.4,
-          1.0,
           0.4,
           1.0,
           0.4,
-          1.0,
           0.4,
-          1.0,
-          0.4,
-          1.0,
-          0.4,
-          1.0,
-          0.4,
-          1.0, // v0-v3-v4-v5 right(green)
           1.0,
           0.4,
           0.4,
           1.0,
+          0.4, // v0-v3-v4-v5 right(green)
           1.0,
           0.4,
           0.4,
           1.0,
-          1.0,
           0.4,
           0.4,
           1.0,
+          0.4,
+          0.4,
           1.0,
           0.4,
-          0.4,
-          1.0, // v0-v5-v6-v1 up(red)
+          0.4, // v0-v5-v6-v1 up(red)
           1.0,
           1.0,
           0.4,
           1.0,
           1.0,
+          0.4,
+          1.0,
           1.0,
           0.4,
           1.0,
           1.0,
-          1.0,
-          0.4,
-          1.0,
-          1.0,
-          1.0,
-          0.4,
-          1.0, // v1-v6-v7-v2 left
-          1.0,
-          1.0,
-          1.0,
-          1.0,
+          0.4, // v1-v6-v7-v2 left
           1.0,
           1.0,
           1.0,
@@ -216,17 +189,13 @@
           0.4,
           1.0,
           1.0,
+          0.4,
+          1.0,
           1.0,
           0.4,
           1.0,
           1.0,
-          1.0,
           0.4,
-          1.0,
-          1.0,
-          1.0,
-          0.4,
-          1.0,
           1.0,
           1.0, // v4-v7-v6-v5 back
         ]);
@@ -239,7 +208,7 @@
           }),
           color: new Cesium.GeometryAttribute({
             componentDatatype: Cesium.ComponentDatatype.FLOAT,
-            componentsPerAttribute: 4,
+            componentsPerAttribute: 3,
             values: colors,
           }),
         });
@@ -287,31 +256,26 @@
         //包围球
         var boundingSphere = new Cesium.BoundingSphere(
           new Cesium.Cartesian3(0.0, 0.0, 0.0),
-          1.0
+          2.0
         );
 
-        var geometry = Cesium.GeometryPipeline.computeNormal(
-          new Cesium.Geometry({
-            attributes: attributes,
-            indices: indices,
-            primitiveType: Cesium.PrimitiveType.TRIANGLES,
-            boundingSphere: boundingSphere,
-          })
-        );
+        var geometry = new Cesium.Geometry({
+          attributes: attributes,
+          indices: indices,
+          primitiveType: Cesium.PrimitiveType.TRIANGLES,
+          boundingSphere: boundingSphere,
+        });
 
         //模型矩阵
-        var ellipsoid = scene.globe.ellipsoid;
         var modelMatrix = Cesium.Matrix4.multiplyByUniformScale(
           Cesium.Matrix4.multiplyByTranslation(
             Cesium.Transforms.eastNorthUpToFixedFrame(
-              ellipsoid.cartographicToCartesian(
-                Cesium.Cartographic.fromDegrees(100.0, 40.0)
-              )
+              Cesium.Cartesian3.fromDegrees(104.0, 30.0)
             ),
-            new Cesium.Cartesian3(0.0, 0.0, 100.0),
+            new Cesium.Cartesian3(0.0, 0.0, 50.0),
             new Cesium.Matrix4()
           ),
-          50.0,
+          25.0,
           new Cesium.Matrix4()
         );
         //四面体的实例
@@ -320,30 +284,29 @@
           modelMatrix: modelMatrix,
         });
         function v_shader() {
-          return (
-            "attribute vec3 position3DHigh;\n" +
-            "attribute vec3 position3DLow;\n" +
-            "attribute float batchId;\n" +
-            "attribute vec4 color;\n" +
-            "varying vec4 v_color;\n" +
-            "void main() {\n" +
-            "   vec4 position = czm_modelViewProjectionRelativeToEye *czm_computePosition();\n" +
-            "   v_color = color;\n" +
-            "   gl_Position = position;\n" +
-            "}"
-          );
+          return `
+          attribute vec3 position3DHigh;
+          attribute vec3 position3DLow;
+          attribute float batchId;
+          attribute vec4 color;
+          varying vec4 v_color;
+          void main() {
+              vec4 position = czm_modelViewProjectionRelativeToEye *czm_computePosition();
+              v_color = color;
+              gl_Position = position;
+          }`;
         }
         function f_shader() {
-          return (
-            "varying vec4 v_color;\n" +
-            "void main() {\n" +
-            "   vec4 color = czm_gammaCorrect(v_color);\n" +
-            "   gl_FragColor = color;\n" +
-            "}\n"
-          );
+          return `
+          varying vec4 v_color;
+          void main() {
+              vec4 color = czm_gammaCorrect(v_color);
+              gl_FragColor = color;
+          }`;
         }
         let appearance = new Cesium.Appearance({
           translucent: false, //显示不为半透明
+          closed: true,
           renderState: {
             blending: Cesium.BlendingState.PRE_MULTIPLIED_ALPHA_BLEND, //使用Alpha混合功能启用混合
             depthTest: { enabled: true }, //深度检测
@@ -353,13 +316,22 @@
           vertexShaderSource: v_shader(), //顶点着色器
         });
         //加入场景
-        scene.primitives.add(
+        let primitive = scene.primitives.add(
           new Cesium.Primitive({
             geometryInstances: instance,
             appearance: appearance,
             asynchronous: false,
           })
         );
+        //
+        viewer.camera.flyTo({
+          destination: Cesium.Cartesian3.fromDegrees(104, 30, 500),
+          orientation: {
+            heading: Cesium.Math.toRadians(0),
+            pitch: Cesium.Math.toRadians(-90),
+            roll: 0.0,
+          },
+        });
 
         //Sandcastle_End
         Sandcastle.finishedLoading();
