@@ -7,7 +7,7 @@
       name="viewport"
       content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
     />
-    <meta name="description" content="添加流动线" />
+    <meta name="description" content="尾迹线" />
     <meta name="cesium-sandcastle-labels" content="Customized" />
     <title>Cesium Demo</title>
     <script type="text/javascript" src="../Sandcastle-header.js"></script>
@@ -58,26 +58,25 @@
                 fabric: {
                   uniforms: {
                     color: new Cesium.Color(1.0, 0.0, 0.0, 1.0),
-                    percentage: 0.2,
+                    percentage: 0.1, // 尾迹百分比
                     offset: 0.0,
                   },
                   source: `
-                        uniform vec4 color;
-                        uniform float percentage;
-                        czm_material czm_getMaterial(czm_materialInput materialInput)
-                        {
-                            czm_material material = czm_getDefaultMaterial(materialInput);
-                            float s = materialInput.s;
-                            material.diffuse = color.rgb;
-                            if(s > percentage + offset || s < offset){
-                                material.alpha = 0.0;
-                            }
-                            else{
-                                material.alpha = (s-offset)/(percentage) ;
-                            }
-                            return material;
-                        }
-                    `,
+                  uniform vec4 color;
+                  uniform float percentage;
+                  czm_material czm_getMaterial(czm_materialInput materialInput)
+                  {
+                      czm_material material = czm_getDefaultMaterial(materialInput);
+                      float s = materialInput.s;
+                      material.diffuse = color.rgb;
+                      if(s > percentage + offset || s < offset){
+                          material.alpha = 0.0;
+                      }
+                      else{
+                          material.alpha = (s-offset)/(percentage) ;
+                      }
+                      return material;
+                  }`,
                 },
               }),
             }),

@@ -78,7 +78,6 @@
           length: length,
           topRadius: 0.0,
           bottomRadius: length * 0.5,
-          // vertexFormat : Cesium.PerInstanceColorAppearance.VERTEX_FORMAT
           vertexFormat:
             Cesium.MaterialAppearance.MaterialSupport.TEXTURED.vertexFormat,
         });
@@ -90,12 +89,12 @@
         // 4.3 创建Primitive
         var radar = scene.primitives.add(
           new Cesium.Primitive({
-            geometryInstances: [redCone],
+            geometryInstances: redCone,
             appearance: new Cesium.MaterialAppearance({
               // 自定义纹理
               material: new Cesium.Material({
                 fabric: {
-                  type: "VtxfShader1",
+                  // type: "radar",
                   uniforms: {
                     color: new Cesium.Color(0.2, 1.0, 0.0, 1.0),
                     repeat: 40.0,
@@ -103,27 +102,27 @@
                     thickness: 0.2,
                   },
                   source: `
-                                uniform vec4 color;
-                                uniform float repeat;
-                                uniform float offset;
-                                uniform float thickness;
-                                czm_material czm_getMaterial(czm_materialInput materialInput)
-                                {
-                                    czm_material material = czm_getDefaultMaterial(materialInput);
-                                    float sp = 1.0/repeat;
-                                    vec2 st = materialInput.st;
-                                    float dis = distance(st, vec2(0.5));
-                                    float m = mod(dis + offset, sp);
-                                    float a = step(sp*(1.0-thickness), m);
-                                    material.diffuse = color.rgb;
-                                    material.alpha = a * color.a;
-                                    return material;
-                                }
-                            `,
+                  uniform vec4 color;
+                  uniform float repeat;
+                  uniform float offset;
+                  uniform float thickness;
+                  czm_material czm_getMaterial(czm_materialInput materialInput)
+                  {
+                    czm_material material = czm_getDefaultMaterial(materialInput);
+                    float sp = 1.0/repeat;
+                    vec2 st = materialInput.st;
+                    float dis = distance(st, vec2(0.5));
+                    float m = mod(dis + offset, sp);
+                    float a = step(sp*(1.0-thickness), m);
+                    material.diffuse = color.rgb;
+                    material.alpha = a * color.a;
+                    return material;
+                  }
+              `,
                 },
                 translucent: false,
               }),
-              faceForward: false, // 当绘制的三角面片法向不能朝向视点时，自动翻转法向，从而避免法向计算后发黑等问题
+              faceForward: true, // 当绘制的三角面片法向不能朝向视点时，自动翻转法向，从而避免法向计算后发黑等问题
               closed: true, // 是否为封闭体，实际上执行的是是否进行背面裁剪
             }),
           })
