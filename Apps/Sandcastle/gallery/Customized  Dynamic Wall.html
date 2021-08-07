@@ -35,8 +35,15 @@
       function startup(Cesium) {
         "use strict";
         //Sandcastle_Begin
+
         // Create the viewer.
+
         var viewer = new Cesium.Viewer("cesiumContainer");
+        if (Cesium.FeatureDetection.supportsImageRenderingPixelated()) {
+          //判断是否支持图像渲染像素化处理
+          viewer.resolutionScale = window.devicePixelRatio;
+        }
+        viewer.scene.postProcessStages.fxaa.enabled = true;
         var scene = viewer.scene;
 
         // Example 1: Draw a red wall with constant min and max heights

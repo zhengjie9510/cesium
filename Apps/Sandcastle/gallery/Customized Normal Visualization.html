@@ -37,6 +37,11 @@
         //Sandcastle_Begin
         // Create the viewer.
         var viewer = new Cesium.Viewer("cesiumContainer");
+        if (Cesium.FeatureDetection.supportsImageRenderingPixelated()) {
+          //判断是否支持图像渲染像素化处理
+          viewer.resolutionScale = window.devicePixelRatio;
+        }
+        viewer.scene.postProcessStages.fxaa.enabled = true;
         var scene = viewer.scene;
 
         // 1: Draw a green polygon on the globe surface.

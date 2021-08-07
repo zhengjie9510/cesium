@@ -114,7 +114,11 @@
         "use strict";
         //Sandcastle_Begin
         var viewer = new Cesium.Viewer("cesiumContainer", { infoBox: false });
-
+        if (Cesium.FeatureDetection.supportsImageRenderingPixelated()) {
+          //判断是否支持图像渲染像素化处理
+          viewer.resolutionScale = window.devicePixelRatio;
+        }
+        viewer.scene.postProcessStages.fxaa.enabled = true;
         /*
          * @Author: Jason
          * @Date: 2022-4-12

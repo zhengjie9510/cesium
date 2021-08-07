@@ -36,6 +36,11 @@
         "use strict";
         //Sandcastle_Begin
         var viewer = new Cesium.Viewer("cesiumContainer", { infoBox: false });
+        if (Cesium.FeatureDetection.supportsImageRenderingPixelated()) {
+          //判断是否支持图像渲染像素化处理
+          viewer.resolutionScale = window.devicePixelRatio;
+        }
+        viewer.scene.postProcessStages.fxaa.enabled = true;
         viewer.camera.flyTo({
           destination: Cesium.Cartesian3.fromDegrees(100, 40, 1000),
           orientation: {
