@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no"
+    />
+    <meta name="description" content="雷达扫描" />
+    <meta name="cesium-sandcastle-labels" content="Customized" />
+    <title>Cesium Demo</title>
+    <script type="text/javascript" src="../Sandcastle-header.js"></script>
+    <script
+      type="text/javascript"
+      src="../../../Build/CesiumUnminified/Cesium.js"
+      nomodule
+    ></script>
+    <script type="module" src="../load-cesium-es6.js"></script>
+  </head>
+
+  <body
+    class="sandcastle-loading"
+    data-sandcastle-bucket="bucket-requirejs.html"
+  >
+    <style>
+      @import url(../templates/bucket.css);
+    </style>
+    <div id="cesiumContainer" class="fullSize"></div>
+    <div id="loadingOverlay">
+      <h1>Loading...</h1>
+    </div>
+    <div id="toolbar"></div>
+    <script id="cesium_sandcastle_script">
+      function startup(Cesium) {
+        "use strict";
+        //Sandcastle_Begin
+
+        // Create the viewer.
+        var viewer = new Cesium.Viewer("cesiumContainer");
+        if (Cesium.FeatureDetection.supportsImageRenderingPixelated()) {
+          //判断是否支持图像渲染像素化处理
+          viewer.resolutionScale = window.devicePixelRatio;
+        }
+        viewer.scene.postProcessStages.fxaa.enabled = true;
+        var scene = viewer.scene;
+
+        // Example 1: Draw a red circle on the globe surface.
+
+        // Create the circle geometry.
+        var circleGeometry = new Cesium.CircleGeometry({
+          center: Cesium.Cartesian3.fromDegrees(-95.0, 43.0),
+          radius: 250000.0,
+          vertexFormat: Cesium.VertexFormat.POSITION_AND_ST,
+        });
+        // Create a geometry instance using the circle geometry
+        // created above. We can also specify a color attribute,
+        // in this case, we're creating a translucent red color.
+        var redCircleInstance = new Cesium.GeometryInstance({
+          geometry: circleGeometry,
+        });
+        // Add the geometry instance to primitives.
+        var primitive = scene.primitives.add(
+          new Cesium.Primitive({
+            geometryInstances: redCircleInstance,
+            // appearance: new Cesium.DebugAppearance({
+            //   attributeName: 'st'
+            // })
+            appearance: new Cesium.MaterialAppearance({
+              material: new Cesium.Material({
+                translucent: false,
+                fabric: {
+                  uniforms: {
+                    color: new Cesium.Color(0.0, 1.0, 0.0),
+                    rotate: 90.0,
+                    percent: 0.1,
+                  },
+                  source: `
+                  float get_angle(vec2 base,vec2 dir)
+                  { 
+                    base = normalize(base);
+                    dir = normalize(dir);
+                    float angle = degrees(acos(abs(dot(dir,base))));
+                    if (dir.s > 0.0 && dir.t > 0.0){angle = angle;}
+                    else if (dir.s < 0.0 && dir.t > 0.0){angle = 180.0 - angle;}
+                    else if (dir.s < 0.0 && dir.t < 0.0){angle = 180.0 + angle;}
+                    else{angle = 360.0 - angle;}
+                    return angle;
+                  }
+
+                  uniform vec4 color;
+                  uniform float rotate;
+                  uniform float percent;
+                  czm_material czm_getMaterial(czm_materialInput materialInput)
+                  {
+                  czm_material material = czm_getDefaultMaterial(materialInput);
+                  material.diffuse = czm_gammaCorrect(color.rgb); 
+
+                  vec2 st = materialInput.st;
+                  vec2 base = vec2(0.5,0.0);
+                  vec2 dir = st-vec2(0.5,0.5);
+                  float len = length(dir);
+                  if(len > 0.49){
+                    material.alpha = (len - 0.49)/0.01;
+                  }
+                  else{
+                    float angle = get_angle(base,dir);
+                    material.alpha = (mod(angle+rotate,360.0)-(1.0-percent)*360.0)/(360.0*percent);
+                  } 
+                  material.emission=vec3(0.5);
+                  return material;
+                }`,
+                },
+              }),
+            }),
+          })
+        );
+        viewer.scene.preUpdate.addEventListener(function () {
+          var rotate = primitive.appearance.material.uniforms.rotate;
+          rotate -= 1;
+          primitive.appearance.material.uniforms.rotate = rotate;
+        });
+        viewer.scene.preUpdate.addEventListener(function () {});
+        //Sandcastle_End
+        Sandcastle.finishedLoading();
+      }
+      if (typeof Cesium !== "undefined") {
+        window.startupCalled = true;
+        startup(Cesium);
+      }
+    </script>
+  </body>
+</html>
