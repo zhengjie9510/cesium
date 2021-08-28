@@ -106,6 +106,9 @@
           offset += 0.005;
           primitive.appearance.material.uniforms.offset = offset;
         });
+        viewer.camera.flyToBoundingSphere(
+          Cesium.CircleGeometry.createGeometry(circleGeometry).boundingSphere
+        );
         //Sandcastle_End
         Sandcastle.finishedLoading();
       }
